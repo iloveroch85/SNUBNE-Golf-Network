@@ -574,18 +574,29 @@ async function renderAdminPanel() {
     document.getElementById('stat-meetings').textContent = meetings.length + '건';
     const upcoming = meetings.filter(m => new Date(m.date) >= new Date(new Date().toDateString())).length;
     document.getElementById('stat-upcoming').textContent = upcoming + '건';
-    document.getElementById('admin-notice-input').value = notice || '';
+
+    const n = typeof notice === 'string' ? { text: notice } : (notice || {});
+    document.getElementById('admin-notice-input').value = n.text || '';
+    document.getElementById('admin-notice-fontsize').value = n.fontSize || DEFAULT_NOTICE_FONT_SIZE;
+    document.getElementById('admin-notice-color').value = n.color || DEFAULT_NOTICE_COLOR;
+    document.getElementById('admin-notice-bold').checked = !!n.bold;
+    document.getElementById('admin-notice-underline').checked = !!n.underline;
   } catch(e) {}
 }
 
 // 안내 메시지 저장
 window.submitAdminNotice = async function() {
   const btn = document.getElementById('btn-save-notice');
-  const msg = document.getElementById('admin-notice-input').value.trim();
+  const text      = document.getElementById('admin-notice-input').value.trim();
+  const fontSize  = document.getElementById('admin-notice-fontsize').value;
+  const color     = document.getElementById('admin-notice-color').value;
+  const bold      = document.getElementById('admin-notice-bold').checked;
+  const underline = document.getElementById('admin-notice-underline').checked;
+
   setLoading(btn, true, '저장');
   try {
-    await DB.setNotice(msg);
-    showToast(msg ? '안내 메시지가 저장되었습니다.' : '안내 메시지가 비워졌습니다.');
+    await DB.setNotice(text ? { text, fontSize, color, bold, underline } : null);
+    showToast(text ? '안내 메시지가 저장되었습니다.' : '안내 메시지가 비워졌습니다.');
   } catch(e) {
     showToast(e.message, 'error');
   } finally {
@@ -614,6 +625,8 @@ let homeIdx = 0;            // 현재 보고 있는 모임 인덱스
 let homeParticipants = [];  // 현재 모임 참가자 전체
 
 const DEFAULT_HOME_SUBTITLE = '가장 가까운 모임 일정을 확인하고 참가 신청하세요.';
+const DEFAULT_NOTICE_FONT_SIZE = '1.2285rem';
+const DEFAULT_NOTICE_COLOR = '#1a3a2a';
 
 async function renderHomePage() {
   try {
@@ -621,15 +634,18 @@ async function renderHomePage() {
     const notice = await DB.getNotice();
     const subtitleEl = document.getElementById('home-hero-subtitle');
     if (subtitleEl) {
-      if (notice) {
-        subtitleEl.textContent = notice;
-        subtitleEl.style.fontSize = '1.365rem';
-        subtitleEl.style.fontWeight = '600';
-        subtitleEl.style.color = 'var(--green-deep)';
+      const n = typeof notice === 'string' ? { text: notice } : notice;
+      if (n && n.text) {
+        subtitleEl.textContent = n.text;
+        subtitleEl.style.fontSize = n.fontSize || DEFAULT_NOTICE_FONT_SIZE;
+        subtitleEl.style.fontWeight = n.bold ? '700' : '600';
+        subtitleEl.style.textDecoration = n.underline ? 'underline' : 'none';
+        subtitleEl.style.color = n.color || DEFAULT_NOTICE_COLOR;
       } else {
         subtitleEl.textContent = DEFAULT_HOME_SUBTITLE;
         subtitleEl.style.fontSize = '';
         subtitleEl.style.fontWeight = '';
+        subtitleEl.style.textDecoration = '';
         subtitleEl.style.color = '';
       }
     }

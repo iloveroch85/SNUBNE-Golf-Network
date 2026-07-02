@@ -235,14 +235,15 @@ const DB = {
   },
 
   // ─── 모임 안내 메시지 (홈 화면 상단 배너) ───────────────
+  // notice 형태: { text, fontSize, color, bold, underline } 또는 문자열(구버전 호환) 또는 null
   async getNotice() {
     const d = await this.load();
-    return d.notice || '';
+    return d.notice || null;
   },
 
-  async setNotice(message) {
+  async setNotice(notice) {
     const d = await this.load();
-    d.notice = message || '';
+    d.notice = notice || null;
     await this.save(d);
   }
 };
