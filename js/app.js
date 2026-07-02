@@ -689,14 +689,39 @@ function isNoticeHtmlEmpty(html) {
     sel.removeAllRanges();
   }
 
+  // 볼드/밑줄 토글: 현재 선택 영역이 이미 적용된 상태인지 확인해 켜고 끈다
+  function isSelectionActive(range, checkFn) {
+    let node = range.startContainer;
+    if (node.nodeType === Node.TEXT_NODE) node = node.parentNode;
+    return checkFn(window.getComputedStyle(node));
+  }
+
+  function toggleStyleOnSelection(styleProp, onValue, offValue, checkFn) {
+    editorEl.focus();
+    const sel = restoreSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+      showToast('먼저 적용할 글자를 드래그해서 선택해주세요.', 'error');
+      return;
+    }
+    const range = sel.getRangeAt(0);
+    const active = isSelectionActive(range, checkFn);
+    applyStyleToSelection(styleProp, active ? offValue : onValue);
+  }
+
+  const isBoldActive = (computed) => parseInt(computed.fontWeight, 10) >= 700;
+  const isUnderlineActive = (computed) =>
+    (computed.textDecorationLine || computed.textDecoration || '').includes('underline');
+
   // 툴바 클릭으로 인해 선택 영역이 풀리기 전에 미리 저장
   [boldBtn, underlineBtn, clearBtn, ...colorSwatches].forEach(btn => {
     if (btn) btn.addEventListener('mousedown', (e) => { e.preventDefault(); saveSelection(); });
   });
   sizePicker.addEventListener('mousedown', saveSelection);
 
-  boldBtn.addEventListener('click', () => applyStyleToSelection('fontWeight', '700'));
-  underlineBtn.addEventListener('click', () => applyStyleToSelection('textDecoration', 'underline'));
+  boldBtn.addEventListener('click', () =>
+    toggleStyleOnSelection('fontWeight', '700', '400', isBoldActive));
+  underlineBtn.addEventListener('click', () =>
+    toggleStyleOnSelection('textDecoration', 'underline', 'none', isUnderlineActive));
 
   sizePicker.addEventListener('change', () => {
     if (sizePicker.value) applyStyleToSelection('fontSize', sizePicker.value);
