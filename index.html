@@ -19,7 +19,7 @@
   <header class="site-header">
     <div class="header-inner">
       <a href="#" class="logo" onclick="return false;">
-        <div class="logo-icon">⛳</div>
+        <div class="logo-icon"><img src="img/snu-logo.svg" alt="서울대학교 로고" class="logo-img"></div>
         <div class="logo-text">
           서울상대 골프 네트워크
           <span class="logo-sub">SNU B&E GOLF NETWORK</span>
@@ -243,10 +243,19 @@
                 <option value="1.6rem">크게</option>
                 <option value="2rem">아주 크게</option>
               </select>
-              <label style="font-size:0.8rem; color:var(--ink-soft); display:flex; align-items:center; gap:6px;">
+              <label style="font-size:0.8rem; color:var(--ink-soft); display:flex; align-items:center; gap:8px;">
                 색상
-                <input type="color" id="notice-color-picker" value="#1a3a2a"
-                  style="width:36px; height:28px; border:1.5px solid var(--line); border-radius:6px; padding:2px; cursor:pointer;">
+                <span class="notice-color-swatches">
+                  <button type="button" class="notice-color-swatch" id="notice-color-red"
+                    data-color="#c0392b" title="빨강"
+                    style="background:#c0392b;"></button>
+                  <button type="button" class="notice-color-swatch" id="notice-color-black"
+                    data-color="#1c1c1c" title="검정"
+                    style="background:#1c1c1c;"></button>
+                  <button type="button" class="notice-color-swatch" id="notice-color-blue"
+                    data-color="#2980b9" title="파랑"
+                    style="background:#2980b9;"></button>
+                </span>
               </label>
               <button type="button" id="btn-notice-clear-format" class="btn btn-sm btn-outline"
                 style="padding:6px 12px;">서식 지우기</button>

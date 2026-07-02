@@ -617,7 +617,7 @@ function isNoticeHtmlEmpty(html) {
   const boldBtn      = document.getElementById('btn-notice-bold');
   const underlineBtn = document.getElementById('btn-notice-underline');
   const sizePicker    = document.getElementById('notice-fontsize-picker');
-  const colorPicker   = document.getElementById('notice-color-picker');
+  const colorSwatches = Array.from(document.querySelectorAll('.notice-color-swatch'));
   const clearBtn      = document.getElementById('btn-notice-clear-format');
 
   let savedRange = null;
@@ -638,7 +638,27 @@ function isNoticeHtmlEmpty(html) {
     return sel;
   }
 
-  // 선택 영역을 지정한 스타일의 <span>으로 감싼다
+  // 선택 영역을 이미 정확히 감싸고 있는 단일 span이 있으면 그 span을 반환한다.
+  // (같은 span에 여러 스타일을 합쳐야 밑줄 색이 글자 색과 항상 같아짐)
+  function findExactWrappingSpan(range) {
+    let node = range.commonAncestorContainer;
+    if (node.nodeType === Node.TEXT_NODE) node = node.parentNode;
+    if (!node || node.tagName !== 'SPAN' || !editorEl.contains(node)) return null;
+    const spanRange = document.createRange();
+    spanRange.selectNodeContents(node);
+    const sameStart = range.compareBoundaryPoints(Range.START_TO_START, spanRange) === 0;
+    const sameEnd = range.compareBoundaryPoints(Range.END_TO_END, spanRange) === 0;
+    return (sameStart && sameEnd) ? node : null;
+  }
+
+  // 스타일이 적용된 span의 밑줄 색을 항상 글자 색과 같게 맞춘다
+  function syncUnderlineColor(span) {
+    if (span.style.textDecorationLine === 'underline' || span.style.textDecoration.includes('underline')) {
+      span.style.textDecorationColor = span.style.color || 'currentColor';
+    }
+  }
+
+  // 선택 영역에 스타일 하나를 적용한다 (기존에 감싸는 span이 있으면 합치고, 없으면 새로 감싼다)
   function applyStyleToSelection(styleProp, styleValue) {
     editorEl.focus();
     const sel = restoreSelection();
@@ -647,6 +667,15 @@ function isNoticeHtmlEmpty(html) {
       return;
     }
     const range = sel.getRangeAt(0);
+    const existingSpan = findExactWrappingSpan(range);
+
+    if (existingSpan) {
+      existingSpan.style[styleProp] = styleValue;
+      syncUnderlineColor(existingSpan);
+      sel.removeAllRanges();
+      return;
+    }
+
     const span = document.createElement('span');
     span.style[styleProp] = styleValue;
     try {
@@ -656,15 +685,15 @@ function isNoticeHtmlEmpty(html) {
       span.appendChild(content);
       range.insertNode(span);
     }
+    syncUnderlineColor(span);
     sel.removeAllRanges();
   }
 
   // 툴바 클릭으로 인해 선택 영역이 풀리기 전에 미리 저장
-  [boldBtn, underlineBtn, clearBtn].forEach(btn => {
+  [boldBtn, underlineBtn, clearBtn, ...colorSwatches].forEach(btn => {
     if (btn) btn.addEventListener('mousedown', (e) => { e.preventDefault(); saveSelection(); });
   });
   sizePicker.addEventListener('mousedown', saveSelection);
-  colorPicker.addEventListener('mousedown', saveSelection);
 
   boldBtn.addEventListener('click', () => applyStyleToSelection('fontWeight', '700'));
   underlineBtn.addEventListener('click', () => applyStyleToSelection('textDecoration', 'underline'));
@@ -674,8 +703,8 @@ function isNoticeHtmlEmpty(html) {
     sizePicker.selectedIndex = 0;
   });
 
-  colorPicker.addEventListener('input', () => {
-    applyStyleToSelection('color', colorPicker.value);
+  colorSwatches.forEach(swatch => {
+    swatch.addEventListener('click', () => applyStyleToSelection('color', swatch.dataset.color));
   });
 
   clearBtn.addEventListener('click', () => {
