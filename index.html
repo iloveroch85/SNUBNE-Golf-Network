@@ -226,34 +226,36 @@
           <div class="card-body">
             <h3 style="font-size:0.95rem; margin-bottom:8px; color:var(--green-deep);">📢 모임 안내 메시지</h3>
             <p style="font-size:0.82rem; color:var(--ink-soft); margin-bottom:12px;">
-              홈 화면 상단에 표시될 안내 문구입니다. 비워두면 기본 문구가 표시됩니다.
+              홈 화면 상단에 표시될 안내 문구입니다. 비워두면 기본 문구가 표시됩니다.<br>
+              원하는 단어나 구절을 드래그로 선택한 뒤 아래 도구로 크기·색상·볼드·밑줄을 적용하세요.
+              줄바꿈은 입력한 그대로 화면에 표시됩니다.
             </p>
-            <textarea id="admin-notice-input" placeholder="예: 7월 정기모임 참가 신청 받습니다! 많은 참여 부탁드립니다."
-              style="width:100%; padding:10px 14px; border:1.5px solid var(--line); border-radius:8px;
-                     font-size:0.9rem; font-family:inherit; min-height:64px; resize:vertical; margin-bottom:10px;"></textarea>
-            <div style="display:flex; flex-wrap:wrap; gap:14px; align-items:center; margin-bottom:14px;">
-              <label style="font-size:0.8rem; color:var(--ink-soft); display:flex; align-items:center; gap:6px;">
-                글자 크기
-                <select id="admin-notice-fontsize"
-                  style="padding:6px 8px; border:1.5px solid var(--line); border-radius:6px; font-size:0.82rem; font-family:inherit;">
-                  <option value="0.95rem">작게</option>
-                  <option value="1.2285rem" selected>기본</option>
-                  <option value="1.6rem">크게</option>
-                  <option value="2rem">아주 크게</option>
-                </select>
-              </label>
+            <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:10px;">
+              <button type="button" id="btn-notice-bold" class="btn btn-sm btn-outline notice-toolbar-btn"
+                style="font-weight:700; padding:6px 14px;">B</button>
+              <button type="button" id="btn-notice-underline" class="btn btn-sm btn-outline notice-toolbar-btn"
+                style="text-decoration:underline; padding:6px 14px;">U</button>
+              <select id="notice-fontsize-picker"
+                style="padding:6px 8px; border:1.5px solid var(--line); border-radius:6px; font-size:0.82rem; font-family:inherit;">
+                <option value="" selected disabled>크기 적용</option>
+                <option value="0.95rem">작게</option>
+                <option value="1.2285rem">기본</option>
+                <option value="1.6rem">크게</option>
+                <option value="2rem">아주 크게</option>
+              </select>
               <label style="font-size:0.8rem; color:var(--ink-soft); display:flex; align-items:center; gap:6px;">
                 색상
-                <input type="color" id="admin-notice-color" value="#1a3a2a"
+                <input type="color" id="notice-color-picker" value="#1a3a2a"
                   style="width:36px; height:28px; border:1.5px solid var(--line); border-radius:6px; padding:2px; cursor:pointer;">
               </label>
-              <label style="font-size:0.8rem; color:var(--ink-soft); display:flex; align-items:center; gap:6px; cursor:pointer;">
-                <input type="checkbox" id="admin-notice-bold"> 볼드
-              </label>
-              <label style="font-size:0.8rem; color:var(--ink-soft); display:flex; align-items:center; gap:6px; cursor:pointer;">
-                <input type="checkbox" id="admin-notice-underline"> 밑줄
-              </label>
+              <button type="button" id="btn-notice-clear-format" class="btn btn-sm btn-outline"
+                style="padding:6px 12px;">서식 지우기</button>
             </div>
+            <div id="admin-notice-input" contenteditable="true"
+              data-placeholder="예: 7월 정기모임 참가 신청 받습니다! 많은 참여 부탁드립니다."
+              style="width:100%; padding:10px 14px; border:1.5px solid var(--line); border-radius:8px;
+                     font-size:0.9rem; font-family:inherit; min-height:64px; line-height:1.6;
+                     overflow-wrap:anywhere; margin-bottom:10px;"></div>
             <button id="btn-save-notice" class="btn btn-primary btn-sm" onclick="submitAdminNotice()">저장</button>
           </div>
         </div>

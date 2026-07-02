@@ -575,28 +575,147 @@ async function renderAdminPanel() {
     const upcoming = meetings.filter(m => new Date(m.date) >= new Date(new Date().toDateString())).length;
     document.getElementById('stat-upcoming').textContent = upcoming + '건';
 
-    const n = typeof notice === 'string' ? { text: notice } : (notice || {});
-    document.getElementById('admin-notice-input').value = n.text || '';
-    document.getElementById('admin-notice-fontsize').value = n.fontSize || DEFAULT_NOTICE_FONT_SIZE;
-    document.getElementById('admin-notice-color').value = n.color || DEFAULT_NOTICE_COLOR;
-    document.getElementById('admin-notice-bold').checked = !!n.bold;
-    document.getElementById('admin-notice-underline').checked = !!n.underline;
+    const editorEl = document.getElementById('admin-notice-input');
+    editorEl.innerHTML = noticeToHtml(notice);
   } catch(e) {}
 }
+
+// ─── 안내 메시지 리치 텍스트 에디터 ────────────────────────
+// notice 저장 형태: { html: '...' } (구버전 문자열/{text,fontSize,color,bold,underline}도 계속 인식)
+function noticeToHtml(notice) {
+  if (!notice) return '';
+  if (typeof notice === 'string') return escapeHtmlText(notice).replace(/\n/g, '<br>');
+  if (notice.html !== undefined) return notice.html;
+  if (notice.text !== undefined) {
+    const styles = [];
+    if (notice.fontSize) styles.push(`font-size:${notice.fontSize}`);
+    if (notice.color) styles.push(`color:${notice.color}`);
+    if (notice.bold) styles.push('font-weight:700');
+    if (notice.underline) styles.push('text-decoration:underline');
+    const body = escapeHtmlText(notice.text).replace(/\n/g, '<br>');
+    return styles.length ? `<span style="${styles.join(';')}">${body}</span>` : body;
+  }
+  return '';
+}
+
+function escapeHtmlText(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function isNoticeHtmlEmpty(html) {
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  return tmp.textContent.trim() === '';
+}
+
+(function setupNoticeEditor() {
+  const editorEl = document.getElementById('admin-notice-input');
+  if (!editorEl) return;
+
+  const boldBtn      = document.getElementById('btn-notice-bold');
+  const underlineBtn = document.getElementById('btn-notice-underline');
+  const sizePicker    = document.getElementById('notice-fontsize-picker');
+  const colorPicker   = document.getElementById('notice-color-picker');
+  const clearBtn      = document.getElementById('btn-notice-clear-format');
+
+  let savedRange = null;
+  function saveSelection() {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      if (editorEl.contains(range.commonAncestorContainer)) {
+        savedRange = range.cloneRange();
+      }
+    }
+  }
+  function restoreSelection() {
+    if (!savedRange) return null;
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(savedRange);
+    return sel;
+  }
+
+  // 선택 영역을 지정한 스타일의 <span>으로 감싼다
+  function applyStyleToSelection(styleProp, styleValue) {
+    editorEl.focus();
+    const sel = restoreSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+      showToast('먼저 적용할 글자를 드래그해서 선택해주세요.', 'error');
+      return;
+    }
+    const range = sel.getRangeAt(0);
+    const span = document.createElement('span');
+    span.style[styleProp] = styleValue;
+    try {
+      range.surroundContents(span);
+    } catch (e) {
+      const content = range.extractContents();
+      span.appendChild(content);
+      range.insertNode(span);
+    }
+    sel.removeAllRanges();
+  }
+
+  // 툴바 클릭으로 인해 선택 영역이 풀리기 전에 미리 저장
+  [boldBtn, underlineBtn, clearBtn].forEach(btn => {
+    if (btn) btn.addEventListener('mousedown', (e) => { e.preventDefault(); saveSelection(); });
+  });
+  sizePicker.addEventListener('mousedown', saveSelection);
+  colorPicker.addEventListener('mousedown', saveSelection);
+
+  boldBtn.addEventListener('click', () => applyStyleToSelection('fontWeight', '700'));
+  underlineBtn.addEventListener('click', () => applyStyleToSelection('textDecoration', 'underline'));
+
+  sizePicker.addEventListener('change', () => {
+    if (sizePicker.value) applyStyleToSelection('fontSize', sizePicker.value);
+    sizePicker.selectedIndex = 0;
+  });
+
+  colorPicker.addEventListener('input', () => {
+    applyStyleToSelection('color', colorPicker.value);
+  });
+
+  clearBtn.addEventListener('click', () => {
+    editorEl.focus();
+    const text = editorEl.innerText.replace(/\r/g, '');
+    editorEl.innerHTML = '';
+    const lines = text.split('\n');
+    lines.forEach((line, i) => {
+      if (line) editorEl.appendChild(document.createTextNode(line));
+      if (i < lines.length - 1) editorEl.appendChild(document.createElement('br'));
+    });
+  });
+
+  // 입력창에서 보이는 줄바꿈 그대로 저장되도록 Enter는 항상 <br> 로 처리
+  editorEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      document.execCommand('insertLineBreak');
+    }
+  });
+
+  // 붙여넣기는 서식 없는 텍스트로만 (임의 HTML 삽입 방지)
+  editorEl.addEventListener('paste', (e) => {
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+    document.execCommand('insertText', false, text);
+  });
+})();
 
 // 안내 메시지 저장
 window.submitAdminNotice = async function() {
   const btn = document.getElementById('btn-save-notice');
-  const text      = document.getElementById('admin-notice-input').value.trim();
-  const fontSize  = document.getElementById('admin-notice-fontsize').value;
-  const color     = document.getElementById('admin-notice-color').value;
-  const bold      = document.getElementById('admin-notice-bold').checked;
-  const underline = document.getElementById('admin-notice-underline').checked;
+  const editorEl = document.getElementById('admin-notice-input');
+  const html = editorEl.innerHTML;
+  const isEmpty = isNoticeHtmlEmpty(html);
 
   setLoading(btn, true, '저장');
   try {
-    await DB.setNotice(text ? { text, fontSize, color, bold, underline } : null);
-    showToast(text ? '안내 메시지가 저장되었습니다.' : '안내 메시지가 비워졌습니다.');
+    await DB.setNotice(isEmpty ? null : { html });
+    showToast(isEmpty ? '안내 메시지가 비워졌습니다.' : '안내 메시지가 저장되었습니다.');
   } catch(e) {
     showToast(e.message, 'error');
   } finally {
@@ -634,19 +753,17 @@ async function renderHomePage() {
     const notice = await DB.getNotice();
     const subtitleEl = document.getElementById('home-hero-subtitle');
     if (subtitleEl) {
-      const n = typeof notice === 'string' ? { text: notice } : notice;
-      if (n && n.text) {
-        subtitleEl.textContent = n.text;
-        subtitleEl.style.fontSize = n.fontSize || DEFAULT_NOTICE_FONT_SIZE;
-        subtitleEl.style.fontWeight = n.bold ? '700' : '600';
-        subtitleEl.style.textDecoration = n.underline ? 'underline' : 'none';
-        subtitleEl.style.color = n.color || DEFAULT_NOTICE_COLOR;
+      const html = noticeToHtml(notice);
+      if (html && !isNoticeHtmlEmpty(html)) {
+        subtitleEl.style.fontSize = DEFAULT_NOTICE_FONT_SIZE;
+        subtitleEl.style.fontWeight = '600';
+        subtitleEl.style.color = DEFAULT_NOTICE_COLOR;
+        subtitleEl.innerHTML = html;
       } else {
-        subtitleEl.textContent = DEFAULT_HOME_SUBTITLE;
         subtitleEl.style.fontSize = '';
         subtitleEl.style.fontWeight = '';
-        subtitleEl.style.textDecoration = '';
         subtitleEl.style.color = '';
+        subtitleEl.textContent = DEFAULT_HOME_SUBTITLE;
       }
     }
 

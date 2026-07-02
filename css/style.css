@@ -861,6 +861,17 @@ body {
 }
 
 /* ===== ADMIN PANEL ===== */
+#admin-notice-input:empty:before {
+  content: attr(data-placeholder);
+  color: var(--ink-soft);
+  pointer-events: none;
+}
+
+#admin-notice-input:focus {
+  outline: none;
+  border-color: var(--green-mid);
+}
+
 .admin-badge {
   display: inline-flex;
   align-items: center;
