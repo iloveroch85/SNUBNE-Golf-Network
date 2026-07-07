@@ -51,6 +51,12 @@ function updateAdminUI() {
   const adminNav = document.getElementById('admin-nav-btn');
   if (adminNav) adminNav.textContent = isAdmin ? '⚙ 관리자' : '🔑 관리자';
 
+  // 개인정보(전화번호) 보호: 회원/모임 메뉴는 관리자에게만 노출
+  const membersNav  = document.getElementById('nav-members-btn');
+  const calendarNav = document.getElementById('nav-calendar-btn');
+  if (membersNav)  membersNav.style.display  = isAdmin ? '' : 'none';
+  if (calendarNav) calendarNav.style.display = isAdmin ? '' : 'none';
+
   // 관리자 전용 버튼 표시/숨김
   const meetingBar = document.getElementById('admin-meeting-bar');
   if (meetingBar) meetingBar.style.display = isAdmin ? 'block' : 'none';
