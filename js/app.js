@@ -118,7 +118,7 @@ window.openMemberDetail = async function(id) {
     document.getElementById('detail-content').innerHTML = `
       <div class="info-list">
         ${row('이름', m.name)}
-        ${row('성별', m.gender||'-')} ${row('전화번호', m.phone||'-')}
+        ${row('성별', m.gender||'-')}
         ${row('학과', m.dept||'-')}  ${row('학번', m.studentId||'-')}
         ${row('직장', m.company||'-')} ${row('직책', m.position||'-')}
       </div>
