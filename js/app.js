@@ -170,6 +170,7 @@ window.openEditMember = async function(id) {
           <option value="경영학과" ${m.dept==='경영학과'?'selected':''}>경영학과</option>
           <option value="경제학과" ${m.dept==='경제학과'?'selected':''}>경제학과</option>
           <option value="국제경제학과" ${m.dept==='국제경제학과'?'selected':''}>국제경제학과</option>
+          <option value="무역학과" ${m.dept==='무역학과'?'selected':''}>무역학과</option>
           <option value="상학과" ${m.dept==='상학과'?'selected':''}>상학과</option>
         </select>
       </div>
