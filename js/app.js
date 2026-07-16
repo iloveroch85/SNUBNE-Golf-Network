@@ -919,6 +919,17 @@ function renderHomeParticipantTable(list) {
       <div class="empty-icon">👥</div><p>신청자가 없습니다.</p></div>`;
     return;
   }
+  // 학번이 낮은 사람이 맨 위로 오도록 정렬 (학번 없는 사람은 맨 아래)
+  const sorted = [...list].sort((a, b) => {
+    const rawA = (homeMembersMap[a.memberId] || {}).studentId;
+    const rawB = (homeMembersMap[b.memberId] || {}).studentId;
+    const numA = rawA ? parseInt(rawA, 10) : NaN;
+    const numB = rawB ? parseInt(rawB, 10) : NaN;
+    if (isNaN(numA) && isNaN(numB)) return 0;
+    if (isNaN(numA)) return 1;
+    if (isNaN(numB)) return -1;
+    return numA - numB;
+  });
   el.innerHTML = `
     <div style="overflow-x:auto;">
       <table class="data-table">
@@ -926,7 +937,7 @@ function renderHomeParticipantTable(list) {
           <th>이름</th><th>성별</th><th>학과</th><th>학번</th><th>직장</th><th>상세보기</th>
         </tr></thead>
         <tbody>
-          ${list.map(p => {
+          ${sorted.map(p => {
             const m = homeMembersMap[p.memberId] || {};
             return `
             <tr>
