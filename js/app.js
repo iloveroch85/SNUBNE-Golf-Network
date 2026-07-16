@@ -920,11 +920,21 @@ function renderHomeParticipantTable(list) {
     return;
   }
   // 학번이 낮은 사람이 맨 위로 오도록 정렬 (학번 없는 사람은 맨 아래)
+  // 2자리 학번은 입학연도로 환산: 50~99 → 1950~1999, 00~49 → 2000~2049
+  // (예: 99학번=1999년, 00학번=2000년 → 00학번이 99학번보다 뒤로 감)
+  function studentIdToYear(raw) {
+    if (!raw) return NaN;
+    const digits = String(raw).trim();
+    const n = parseInt(digits, 10);
+    if (isNaN(n)) return NaN;
+    if (digits.length <= 2) return n >= 50 ? 1900 + n : 2000 + n;
+    return n;
+  }
   const sorted = [...list].sort((a, b) => {
     const rawA = (homeMembersMap[a.memberId] || {}).studentId;
     const rawB = (homeMembersMap[b.memberId] || {}).studentId;
-    const numA = rawA ? parseInt(rawA, 10) : NaN;
-    const numB = rawB ? parseInt(rawB, 10) : NaN;
+    const numA = studentIdToYear(rawA);
+    const numB = studentIdToYear(rawB);
     if (isNaN(numA) && isNaN(numB)) return 0;
     if (isNaN(numA)) return 1;
     if (isNaN(numB)) return -1;
