@@ -315,6 +315,10 @@ window.calNext = function() { if (++calMonth > 11) { calMonth=0;  calYear++; } r
 window.onCalDayClick = function(day) {
   if (!AdminSession.isLoggedIn()) return;
   const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+  document.getElementById('form-add-meeting').reset();
+  document.getElementById('edit-meeting-id').value = '';
+  document.getElementById('add-meeting-modal-title').textContent = '골프 모임 생성';
+  document.getElementById('btn-add-meeting').textContent = '생성';
   document.getElementById('inp-meeting-date').value = dateStr;
   openModal('modal-add-meeting');
 };
@@ -447,6 +451,7 @@ window.openMeetingModal = async function(id) {
 
       ${AdminSession.isLoggedIn() ? `
         <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line);display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-outline btn-sm" onclick="openEditMeetingModal('${id}')">✏️ 날짜/장소 수정</button>
           <button class="btn btn-gold btn-sm" onclick="doTeamMatch('${id}')">🎲 팀 랜덤 매칭</button>
           <button class="btn btn-danger btn-sm" onclick="deleteMeetingConfirm('${id}')">🗑 모임 삭제</button>
         </div>` : ''}
@@ -506,29 +511,62 @@ window.deleteMeetingConfirm = async function(id) {
 };
 
 window.submitAddMeeting = async function() {
+  const editId = document.getElementById('edit-meeting-id').value;
   const date  = document.getElementById('inp-meeting-date').value;
   const place = document.getElementById('inp-meeting-place').value.trim();
   const time  = document.getElementById('inp-meeting-time').value;
+  const note  = document.getElementById('inp-meeting-note').value.trim();
   if (!date || !place) { showToast('날짜와 장소는 필수입니다.', 'error'); return; }
   const btn = document.getElementById('btn-add-meeting');
-  setLoading(btn, true, '생성');
+  const btnLabel = editId ? '저장' : '생성';
+  setLoading(btn, true, btnLabel);
   try {
-    await DB.addMeeting({ date, place, time, note: document.getElementById('inp-meeting-note').value.trim() });
+    if (editId) {
+      // 기존 모임의 id는 그대로 두고 날짜/장소 등 정보만 바꾼다.
+      // 참가자 명단은 모임 id로 연결돼 있어서 별도로 옮길 필요 없이 그대로 유지된다.
+      await DB.updateMeeting(editId, { date, place, time, note });
+      showToast('모임 정보가 수정되었습니다. 참가자 명단은 그대로 유지됩니다.');
+    } else {
+      await DB.addMeeting({ date, place, time, note });
+      showToast('모임이 생성되었습니다.');
+    }
     closeModal('modal-add-meeting');
     document.getElementById('form-add-meeting').reset();
-    showToast('모임이 생성되었습니다.');
+    document.getElementById('edit-meeting-id').value = '';
+    document.getElementById('add-meeting-modal-title').textContent = '골프 모임 생성';
     calMeetings = await DB.getMeetings();
     renderCalendar();
     renderMeetingList();
   } catch(e) {
-    showToast('생성 실패: ' + e.message, 'error');
+    showToast((editId ? '수정 실패: ' : '생성 실패: ') + e.message, 'error');
   } finally {
-    setLoading(btn, false, '생성');
+    setLoading(btn, false, btnLabel);
   }
 };
 
 window.openAddMeetingModal = function() {
+  document.getElementById('form-add-meeting').reset();
+  document.getElementById('edit-meeting-id').value = '';
+  document.getElementById('add-meeting-modal-title').textContent = '골프 모임 생성';
+  document.getElementById('btn-add-meeting').textContent = '생성';
   openModal('modal-add-meeting');
+};
+
+// 기존 모임의 날짜/장소/시간/메모를 수정 (참가자는 그대로 유지됨)
+window.openEditMeetingModal = async function(id) {
+  try {
+    const meeting = await DB.getMeeting(id);
+    if (!meeting) { showToast('모임을 찾을 수 없습니다.', 'error'); return; }
+    closeModal('modal-meeting-detail');
+    document.getElementById('edit-meeting-id').value = id;
+    document.getElementById('inp-meeting-date').value  = meeting.date || '';
+    document.getElementById('inp-meeting-time').value  = meeting.time || '';
+    document.getElementById('inp-meeting-place').value = meeting.place || '';
+    document.getElementById('inp-meeting-note').value  = meeting.note || '';
+    document.getElementById('add-meeting-modal-title').textContent = '골프 모임 수정';
+    document.getElementById('btn-add-meeting').textContent = '저장';
+    openModal('modal-add-meeting');
+  } catch(e) { showToast(e.message, 'error'); }
 };
 
 // ════════════════════════════════════════════════════════════

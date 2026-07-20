@@ -159,6 +159,17 @@ const DB = {
     return meeting;
   },
 
+  // 모임 정보 수정 (id는 유지되므로 참가자 명단은 그대로 연결된 채 남는다 —
+  // 즉 날짜만 바꾸고 싶을 때는 이 함수로 date만 바꾸면 참가자를 옮길 필요가 없다)
+  async updateMeeting(id, updates) {
+    const d = await this.load();
+    const idx = (d.meetings || []).findIndex(m => m.id === id);
+    if (idx === -1) throw new Error('모임을 찾을 수 없습니다.');
+    d.meetings[idx] = { ...d.meetings[idx], ...updates };
+    await this.save(d);
+    return d.meetings[idx];
+  },
+
   async deleteMeeting(id) {
     const d = await this.load();
     d.meetings = d.meetings.filter(m => m.id !== id);

@@ -7,7 +7,7 @@
   <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>서울상대 골프 네트워크</title>
-  <link rel="stylesheet" href="css/style.css?v=20260716">
+  <link rel="stylesheet" href="css/style.css?v=20260720">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛳</text></svg>">
 </head>
 <body>
@@ -369,15 +369,16 @@
   </div>
 </div>
 
-<!-- 모임 생성 -->
+<!-- 모임 생성/수정 -->
 <div class="modal-overlay" id="modal-add-meeting">
   <div class="modal">
     <div class="modal-header">
-      <h3>골프 모임 생성</h3>
+      <h3 id="add-meeting-modal-title">골프 모임 생성</h3>
       <button class="modal-close" onclick="closeModal('modal-add-meeting')">✕</button>
     </div>
     <div class="modal-body">
       <form id="form-add-meeting" onsubmit="return false;">
+        <input type="hidden" id="edit-meeting-id" value="">
         <div class="form-grid">
           <div class="form-group">
             <label>날짜 *</label>
@@ -497,8 +498,8 @@
   </div>
 </div>
 
-<script src="js/db.js?v=20260716"></script>
-<script src="js/app.js?v=20260716"></script>
+<script src="js/db.js?v=20260720"></script>
+<script src="js/app.js?v=20260720"></script>
 
 </body>
 </html>
