@@ -228,6 +228,73 @@ window.deleteMemberConfirm = async function(id, name) {
 
 window.openAddMemberGlobal = function() { openModal('modal-add-member'); };
 
+// 관리자 전용: 회원 연락처 엑셀 다운로드
+window.exportMembersExcel = async function() {
+  if (!AdminSession.isLoggedIn()) {
+    showToast('관리자만 이용할 수 있는 기능입니다.', 'error');
+    return;
+  }
+  if (typeof XLSX === 'undefined') {
+    showToast('엑셀 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하고 새로고침 해주세요.', 'error');
+    return;
+  }
+  const btn = document.getElementById('btn-export-members');
+  setLoading(btn, true, '엑셀 다운로드');
+  try {
+    const members = await DB.getMembers();
+    if (!members.length) {
+      showToast('등록된 회원이 없습니다.');
+      return;
+    }
+    // 학번 오름차순(입학연도 기준)으로 정렬해서 내보낸다
+    const sorted = [...members].sort((a, b) => {
+      const ya = studentIdToYearGlobal(a.studentId);
+      const yb = studentIdToYearGlobal(b.studentId);
+      if (isNaN(ya) && isNaN(yb)) return 0;
+      if (isNaN(ya)) return 1;
+      if (isNaN(yb)) return -1;
+      return ya - yb;
+    });
+
+    const rows = sorted.map(m => ({
+      '이름': m.name || '',
+      '학번': m.studentId || '',
+      '학과': m.dept || '',
+      '성별': m.gender || '',
+      '전화번호': m.phone || '',
+      '직장': m.company || '',
+      '직책': m.position || ''
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [
+      { wch: 10 }, { wch: 8 }, { wch: 14 }, { wch: 6 },
+      { wch: 16 }, { wch: 18 }, { wch: 14 }
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '회원 연락처');
+
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}`;
+    XLSX.writeFile(wb, `서울상대골프네트워크_회원연락처_${dateStr}.xlsx`);
+    showToast('엑셀 파일이 다운로드되었습니다.');
+  } catch(e) {
+    showToast('다운로드 실패: ' + e.message, 'error');
+  } finally {
+    setLoading(btn, false, '엑셀 다운로드');
+  }
+};
+
+// 학번(2자리) → 입학연도 환산 (홈 참가자 정렬 로직과 동일한 규칙)
+function studentIdToYearGlobal(raw) {
+  if (!raw) return NaN;
+  const digits = String(raw).trim();
+  const n = parseInt(digits, 10);
+  if (isNaN(n)) return NaN;
+  if (digits.length <= 2) return n >= 50 ? 1900 + n : 2000 + n;
+  return n;
+}
+
 window.submitAddMember = async function() {
   const v    = id => document.getElementById(id).value.trim();
   const name = v('inp-name'), phone = v('inp-phone');
