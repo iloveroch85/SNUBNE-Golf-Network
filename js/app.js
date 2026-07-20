@@ -228,6 +228,73 @@ window.deleteMemberConfirm = async function(id, name) {
 
 window.openAddMemberGlobal = function() { openModal('modal-add-member'); };
 
+// 관리자 전용: 회원 연락처 엑셀 다운로드
+window.exportMembersExcel = async function() {
+  if (!AdminSession.isLoggedIn()) {
+    showToast('관리자만 이용할 수 있는 기능입니다.', 'error');
+    return;
+  }
+  if (typeof XLSX === 'undefined') {
+    showToast('엑셀 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하고 새로고침 해주세요.', 'error');
+    return;
+  }
+  const btn = document.getElementById('btn-export-members');
+  setLoading(btn, true, '엑셀 다운로드');
+  try {
+    const members = await DB.getMembers();
+    if (!members.length) {
+      showToast('등록된 회원이 없습니다.');
+      return;
+    }
+    // 학번 오름차순(입학연도 기준)으로 정렬해서 내보낸다
+    const sorted = [...members].sort((a, b) => {
+      const ya = studentIdToYearGlobal(a.studentId);
+      const yb = studentIdToYearGlobal(b.studentId);
+      if (isNaN(ya) && isNaN(yb)) return 0;
+      if (isNaN(ya)) return 1;
+      if (isNaN(yb)) return -1;
+      return ya - yb;
+    });
+
+    const rows = sorted.map(m => ({
+      '이름': m.name || '',
+      '학번': m.studentId || '',
+      '학과': m.dept || '',
+      '성별': m.gender || '',
+      '전화번호': m.phone || '',
+      '직장': m.company || '',
+      '직책': m.position || ''
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [
+      { wch: 10 }, { wch: 8 }, { wch: 14 }, { wch: 6 },
+      { wch: 16 }, { wch: 18 }, { wch: 14 }
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '회원 연락처');
+
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}`;
+    XLSX.writeFile(wb, `서울상대골프네트워크_회원연락처_${dateStr}.xlsx`);
+    showToast('엑셀 파일이 다운로드되었습니다.');
+  } catch(e) {
+    showToast('다운로드 실패: ' + e.message, 'error');
+  } finally {
+    setLoading(btn, false, '엑셀 다운로드');
+  }
+};
+
+// 학번(2자리) → 입학연도 환산 (홈 참가자 정렬 로직과 동일한 규칙)
+function studentIdToYearGlobal(raw) {
+  if (!raw) return NaN;
+  const digits = String(raw).trim();
+  const n = parseInt(digits, 10);
+  if (isNaN(n)) return NaN;
+  if (digits.length <= 2) return n >= 50 ? 1900 + n : 2000 + n;
+  return n;
+}
+
 window.submitAddMember = async function() {
   const v    = id => document.getElementById(id).value.trim();
   const name = v('inp-name'), phone = v('inp-phone');
@@ -921,6 +988,7 @@ async function renderHomeMeetingCard(meeting) {
     </div>
     <div class="home-action-btns">
       <button class="btn btn-primary" onclick="homeOpenJoinForm('${meeting.id}')">✋ 참가 신청</button>
+      <button class="btn btn-outline" onclick="homeOpenCancelForm('${meeting.id}')">✖️ 참가 취소</button>
     </div>
     ${homeMeetings.length > 1 ? `
     <div class="home-meeting-index">${homeIdx + 1} / ${homeMeetings.length}</div>` : ''}
@@ -1024,6 +1092,7 @@ window.homeSearchParticipants = function() {
 // 참가 신청 폼 열기
 window.homeOpenJoinForm = function(meetingId) {
   document.getElementById('home-join-meeting-id').value = meetingId;
+  document.getElementById('home-join-mode').value = 'join';
   document.getElementById('home-join-name').value  = '';
   document.getElementById('home-join-phone').value = '';
   document.getElementById('home-join-error').style.display = 'none';
@@ -1031,13 +1100,34 @@ window.homeOpenJoinForm = function(meetingId) {
   // 신규가입 필드 초기화
   ['home-reg-gender','home-reg-dept','home-reg-studentid','home-reg-company','home-reg-position','home-reg-intro']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('home-join-modal-title').textContent = '참가 신청';
+  document.getElementById('home-join-info-text').innerHTML =
+    'ℹ️ <strong>회원 등록 시 입력한 이름과 전화번호</strong>를 입력해주세요.<br>이미 신청한 경우 참가 취소로 전환됩니다.';
   document.getElementById('btn-home-join-submit').textContent = '신청하기';
+  document.getElementById('btn-home-join-submit').className = 'btn btn-primary';
   openModal('modal-home-join');
 };
 
-// 참가 신청 처리 (신청 / 취소 / 미등록 시 자동가입 3분기)
+// 참가 취소 폼 열기
+window.homeOpenCancelForm = function(meetingId) {
+  document.getElementById('home-join-meeting-id').value = meetingId;
+  document.getElementById('home-join-mode').value = 'cancel';
+  document.getElementById('home-join-name').value  = '';
+  document.getElementById('home-join-phone').value = '';
+  document.getElementById('home-join-error').style.display = 'none';
+  document.getElementById('home-join-register-section').style.display = 'none';
+  document.getElementById('home-join-modal-title').textContent = '참가 취소';
+  document.getElementById('home-join-info-text').innerHTML =
+    'ℹ️ <strong>참가 신청 시 입력한 이름과 전화번호</strong>를 입력하면 참가가 취소됩니다.';
+  document.getElementById('btn-home-join-submit').textContent = '취소하기';
+  document.getElementById('btn-home-join-submit').className = 'btn btn-danger';
+  openModal('modal-home-join');
+};
+
+// 참가 신청/취소 처리
 window.homeSubmitJoin = async function() {
   const meetingId = document.getElementById('home-join-meeting-id').value;
+  const mode      = document.getElementById('home-join-mode').value;
   const name      = document.getElementById('home-join-name').value.trim();
   const phone     = document.getElementById('home-join-phone').value.trim();
   const errEl     = document.getElementById('home-join-error');
@@ -1052,6 +1142,23 @@ window.homeSubmitJoin = async function() {
   errEl.style.display = 'none';
 
   const btn = document.getElementById('btn-home-join-submit');
+
+  // ── 명시적 참가 취소 모드 ──
+  if (mode === 'cancel') {
+    setLoading(btn, true, '취소하기');
+    try {
+      await DB.cancelMeeting(meetingId, name, phone);
+      closeModal('modal-home-join');
+      showToast(`${name}님의 참가가 취소되었습니다.`);
+      await refreshHomeParticipants(meetingId);
+    } catch(e) {
+      errEl.style.display = 'block';
+      errEl.textContent   = e.message;
+    } finally {
+      setLoading(btn, false, '취소하기');
+    }
+    return;
+  }
 
   // ── 신규가입 모드: 회원가입 후 바로 참가신청 ──
   if (isRegisterMode) {
