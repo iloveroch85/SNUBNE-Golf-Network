@@ -988,6 +988,7 @@ async function renderHomeMeetingCard(meeting) {
     </div>
     <div class="home-action-btns">
       <button class="btn btn-primary" onclick="homeOpenJoinForm('${meeting.id}')">✋ 참가 신청</button>
+      <button class="btn btn-outline" onclick="homeOpenCancelForm('${meeting.id}')">✖️ 참가 취소</button>
     </div>
     ${homeMeetings.length > 1 ? `
     <div class="home-meeting-index">${homeIdx + 1} / ${homeMeetings.length}</div>` : ''}
@@ -1091,6 +1092,7 @@ window.homeSearchParticipants = function() {
 // 참가 신청 폼 열기
 window.homeOpenJoinForm = function(meetingId) {
   document.getElementById('home-join-meeting-id').value = meetingId;
+  document.getElementById('home-join-mode').value = 'join';
   document.getElementById('home-join-name').value  = '';
   document.getElementById('home-join-phone').value = '';
   document.getElementById('home-join-error').style.display = 'none';
@@ -1098,13 +1100,34 @@ window.homeOpenJoinForm = function(meetingId) {
   // 신규가입 필드 초기화
   ['home-reg-gender','home-reg-dept','home-reg-studentid','home-reg-company','home-reg-position','home-reg-intro']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('home-join-modal-title').textContent = '참가 신청';
+  document.getElementById('home-join-info-text').innerHTML =
+    'ℹ️ <strong>회원 등록 시 입력한 이름과 전화번호</strong>를 입력해주세요.<br>이미 신청한 경우 참가 취소로 전환됩니다.';
   document.getElementById('btn-home-join-submit').textContent = '신청하기';
+  document.getElementById('btn-home-join-submit').className = 'btn btn-primary';
   openModal('modal-home-join');
 };
 
-// 참가 신청 처리 (신청 / 취소 / 미등록 시 자동가입 3분기)
+// 참가 취소 폼 열기
+window.homeOpenCancelForm = function(meetingId) {
+  document.getElementById('home-join-meeting-id').value = meetingId;
+  document.getElementById('home-join-mode').value = 'cancel';
+  document.getElementById('home-join-name').value  = '';
+  document.getElementById('home-join-phone').value = '';
+  document.getElementById('home-join-error').style.display = 'none';
+  document.getElementById('home-join-register-section').style.display = 'none';
+  document.getElementById('home-join-modal-title').textContent = '참가 취소';
+  document.getElementById('home-join-info-text').innerHTML =
+    'ℹ️ <strong>참가 신청 시 입력한 이름과 전화번호</strong>를 입력하면 참가가 취소됩니다.';
+  document.getElementById('btn-home-join-submit').textContent = '취소하기';
+  document.getElementById('btn-home-join-submit').className = 'btn btn-danger';
+  openModal('modal-home-join');
+};
+
+// 참가 신청/취소 처리
 window.homeSubmitJoin = async function() {
   const meetingId = document.getElementById('home-join-meeting-id').value;
+  const mode      = document.getElementById('home-join-mode').value;
   const name      = document.getElementById('home-join-name').value.trim();
   const phone     = document.getElementById('home-join-phone').value.trim();
   const errEl     = document.getElementById('home-join-error');
@@ -1119,6 +1142,23 @@ window.homeSubmitJoin = async function() {
   errEl.style.display = 'none';
 
   const btn = document.getElementById('btn-home-join-submit');
+
+  // ── 명시적 참가 취소 모드 ──
+  if (mode === 'cancel') {
+    setLoading(btn, true, '취소하기');
+    try {
+      await DB.cancelMeeting(meetingId, name, phone);
+      closeModal('modal-home-join');
+      showToast(`${name}님의 참가가 취소되었습니다.`);
+      await refreshHomeParticipants(meetingId);
+    } catch(e) {
+      errEl.style.display = 'block';
+      errEl.textContent   = e.message;
+    } finally {
+      setLoading(btn, false, '취소하기');
+    }
+    return;
+  }
 
   // ── 신규가입 모드: 회원가입 후 바로 참가신청 ──
   if (isRegisterMode) {
